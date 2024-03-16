@@ -1,7 +1,13 @@
-OUTPUT_FOLDER = bin
+# ----------------ARGUMENTS----------------
+# Change test case as needed from the function call
+TEST_CASE ?= 32.txt
+
 
 # ----------------VARIABLES----------------
-# Assign environment as needed
+# General Variables
+OUTPUT_FOLDER = bin
+TEST_FOLDER = test_cases
+
 # Serial Variables
 SERIAL_EXECUTABLE = serial.exe
 SERIAL_SRC = serial.cpp
@@ -29,7 +35,7 @@ CUDA_SRC = cuda.cu
 # ----------------SCRIPTS----------------
 # Compile Scripts
 all: serial parallel
-	@echo "Everything is compiled, use 'make exec_<serial/mpi/openmp/cuda>' to execute the program"
+	@echo "Everything is compiled, use 'make exec_<serial/mpi/openmp/cuda> TEST_CASE=<test_file>' to execute the program"
 parallel: mpi openmp cuda
 
 serial:
@@ -47,13 +53,13 @@ cuda:
 
 # Execute programs
 exec_serial:
-	@cd $(OUTPUT_FOLDER) && ./$(SERIAL_EXECUTABLE)
+	@cd $(OUTPUT_FOLDER) && ./$(SERIAL_EXECUTABLE) < ../$(TEST_FOLDER)/$(TEST_CASE)
 exec_mpi:
-	@cd $(OUTPUT_FOLDER) && mpiexec $(MPI_EXECUTABLE)
+	@cd $(OUTPUT_FOLDER) && mpiexec $(MPI_EXECUTABLE)  < ../$(TEST_FOLDER)/$(TEST_CASE)
 exec_openmp:
-	@cd $(OUTPUT_FOLDER) && ./$(OPENMP_EXECUTABLE)
+	@cd $(OUTPUT_FOLDER) && ./$(OPENMP_EXECUTABLE) < ../$(TEST_FOLDER)/$(TEST_CASE)
 exec_cuda:
-	@cd $(OUTPUT_FOLDER) && ./$(CUDA_EXECUTABLE)
+	@cd $(OUTPUT_FOLDER) && ./$(CUDA_EXECUTABLE) < ../$(TEST_FOLDER)/$(TEST_CASE)
 
 # Clean
 clean:
