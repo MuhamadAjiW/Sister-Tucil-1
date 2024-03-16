@@ -8,6 +8,7 @@ TEST_CASE ?= 2048.txt
 OUTPUT_FOLDER = bin
 TEST_FOLDER = test_cases
 RESULT_FOLDER = results
+GCC_OPTIMIZATION_FLAGS = -Ofast -march=native -flto -fno-signed-zeros -fno-trapping-math
 
 # Serial Variables
 SERIAL_EXECUTABLE = serial.exe
@@ -20,12 +21,12 @@ MPI_BIN = $(MSMPI_BIN)
 MPI_INC = $(MSMPI_INC)
 MPI_LIB32 = $(MSMPI_LIB32)
 MPI_LIB64 = $(MSMPI_LIB64)
-MPI_FLAGS = -g -fdiagnostics-color=always -I ${MPI_INC} -L ${MPI_LIB64} -lmsmpi
+MPI_FLAGS = $(GCC_OPTIMIZATION_FLAGS) -I ${MPI_INC} -L ${MPI_LIB64} -lmsmpi
 
 # OpenMP Variables
 OPENMP_EXECUTABLE = openmp.exe
 OPENMP_SRC = openmp.cpp
-OPENMP_FLAGS = -g -fdiagnostics-color=always -fopenmp
+OPENMP_FLAGS = $(GCC_OPTIMIZATION_FLAGS) -fopenmp
 
 # CUDA Variables
 CUDA_EXECUTABLE = cuda.exe
