@@ -8,7 +8,7 @@ TEST_CASE ?= 2048.txt
 OUTPUT_FOLDER = bin
 TEST_FOLDER = test_cases
 RESULT_FOLDER = results
-GCC_OPTIMIZATION_FLAGS = -Ofast -march=native -flto -fno-signed-zeros -fno-trapping-math
+GCC_OPTIMIZATION_FLAGS = -O3 -march=native
 
 # Serial Variables
 SERIAL_EXECUTABLE = serial.exe
