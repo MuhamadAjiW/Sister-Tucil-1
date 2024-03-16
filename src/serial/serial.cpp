@@ -4,7 +4,8 @@
  * Source: https://github.com/peterabraham/Gauss-Jordan-Elimination/blob/master/GaussJordanElimination.cpp
  **/
 
-#include<iostream>
+#include <iostream>
+#include <chrono>
 using namespace std;
 
 int main()
@@ -30,6 +31,7 @@ int main()
             cin >> mat[i][j];
         }
     }
+    auto start = chrono::high_resolution_clock::now();
     
     // Initializing Right-hand side to identity matrix
     for(i = 0; i < n; ++i)
@@ -82,7 +84,11 @@ int main()
             mat[i][j] = mat[i][j]/d;
         }
     }
-    
+
+    auto end = chrono::high_resolution_clock::now();
+    chrono::duration<double> time_taken = end - start;
+    cout << time_taken.count() << " Seconds" << std::endl;
+
     cout << n << endl;
     for(i=0; i < n; ++i)
     {
@@ -92,6 +98,7 @@ int main()
         }
         cout << endl;
     }
+    
     
     // Deleting the memory allocated
     for (i = 0; i < n; ++i)

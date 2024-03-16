@@ -22,7 +22,6 @@ void print_matrix(double* mat, int x, int y, int x_offset){
 // Main functionality not split into functions to reduce function calls
 int main(void) {
     // MPI vars
-    // Variables are matched with register length, hence long long
     int world_size = 0;
     int world_rank = 0;
 
@@ -33,16 +32,11 @@ int main(void) {
 
     // For some reason this does not work using cpp's new, hence malloc
     MPI_Request* request_queue = (MPI_Request*) malloc (sizeof(MPI_Request) * world_size);
-    // MPI_Request* request_queue = (MPI_Request*) malloc (sizeof(MPI_Request) * world_size);
     
     // Matrix vars, changed to row and col to improve readability
     int i = 0, row = 0, col = 0, n = 0;
     double* mat = NULL;
-
-    // Initialize the queue with null
-    for (i = 0; i < world_size; i++){
-        request_queue[i] = MPI_REQUEST_NULL;
-    }
+    double start;
 
     // Read matrix information in world_rank 0
     if (world_rank == 0){
@@ -64,9 +58,12 @@ int main(void) {
         }
         
     }
+    if (world_rank == 0) {
+        start = MPI_Wtime();
+    }
 
     // Initialize local matrix
-    // Lots of variables are here to avoid recalculation; storing over recalculating, memory is cheap
+    // Lots of variables are here to avoid recalculation
     MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
     int n_double = n * 2;
     int n_rows = n / world_size;
@@ -90,7 +87,6 @@ int main(void) {
     );
 
     // Actual operation for each processes
-    // Max is end_row for each world rank since that's all the row's needed for
     for (row = 0; row < end_row; row++){
         
         // Spread using batch
@@ -137,8 +133,6 @@ int main(void) {
                 }
             }
         }
-
-        // Receive pivot rows if not in batch
         else{
             // Blocking receive
             MPI_Recv(
@@ -166,7 +160,6 @@ int main(void) {
         }
     }
 
-    
     for (row = end_row; row < n; row++){
         // Blocking receive
         MPI_Recv(
@@ -192,8 +185,6 @@ int main(void) {
             }
         }
     }
-    // if(world_rank == 0) print_matrix(local_mat, n_double, n_rows, 0);
-
     
     // Gather time
     MPI_Gather(
@@ -212,10 +203,14 @@ int main(void) {
     );
 
     // Check for results
-    if(world_rank == 0) print_matrix(mat, n_double, n, n);
+    if (world_rank == 0) {
+        double end = MPI_Wtime();
+        cout << end - start << " Seconds" << endl;
+        print_matrix(mat, n_double, n, n);
 
+        delete[] mat;
+    }
     // Clean up
-    if(world_rank == 0) delete[] mat;
     delete[] local_mat;
     free(request_queue);
 
