@@ -6,12 +6,12 @@
 #include <iostream>
 using namespace std;
 
-void print_matrix(double* mat, int x, int y){
-    cout << x << endl;
+void print_matrix(double* mat, int x, int y, int x_offset){
+    cout << y << endl;
     for(int i=0; i < y; ++i)
     {
         int offset = i * x;
-        for(int j = 0; j < x; ++j)
+        for(int j = x_offset; j < x; ++j)
         {
             cout << mat[offset + j] << " ";
         }
@@ -47,21 +47,32 @@ int main(void) {
     // Read matrix information in world_rank 0
     if (world_rank == 0){
         cin >> n;
+        int n_double = 2 * n;
 
         // Why even initialize it with 2n x 2n in the serial code? That's not very memory efficient
-        mat = new double[2 * n * n];
-        for (i = 0; i < n * n; ++i) {
-            cin >> mat[i];
+        mat = new double[n_double * n];
+        for (row = 0; row < n; ++row) {
+            int offset = row * n_double;
+
+            for (col = 0; col < n; col++){
+                cin >> mat[offset + col];
+            }            
         }
+
+        for (row = 0; row < n; row++){
+            mat[row * n_double + row + n] = 1;
+        }
+        
     }
 
     // Initialize local matrix
     // Lots of variables are here to avoid recalculation; storing over recalculating, memory is cheap
     MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    int n_double = n * 2;
     int n_rows = n / world_size;
-    int local_size = n * n_rows;
+    int local_size = n_double * n_rows;
     double* local_mat = new double[local_size];
-    double* pivot_row = new double[n];
+    double* pivot_row = new double[n_double];
     int start_row = world_rank * n_rows;
     int end_row = start_row + n_rows;
 
@@ -89,9 +100,9 @@ int main(void) {
             int local_row = row - start_row;
 
             // Pivot calculation to the right
-            int offset = local_row * n;
+            int offset = local_row * n_double;
             double pivot = local_mat[offset + row];
-            for (col = row; col < n; col++){
+            for (col = row; col < n_double; col++){
                 local_mat[offset + col] /= pivot;
             }
 
@@ -102,7 +113,7 @@ int main(void) {
                 MPI_Isend(
                     // Data to be sent
                     local_mat + offset,
-                    n,
+                    n_double,
                     MPI_DOUBLE,
 
                     // Receiver Info
@@ -117,11 +128,11 @@ int main(void) {
             for (i = 0; i < n_rows; i++){
                 if(i == local_row) continue;
 
-                int elimination_offset = i * n;
+                int elimination_offset = i * n_double;
                 double scale = local_mat[elimination_offset + row];
 
                 // Update column values using the given pivot
-                for (col = 0; col < n; col++){
+                for (col = 0; col < n_double; col++){
                     local_mat[elimination_offset + col] -= local_mat[offset + col] * scale;
                 }
             }
@@ -133,7 +144,7 @@ int main(void) {
             MPI_Recv(
                 // Data to be received
                 pivot_row,
-                n,
+                n_double,
                 MPI_DOUBLE,
 
                 // Sender Info
@@ -144,23 +155,24 @@ int main(void) {
             );
 
             for (i = 0; i < n_rows; i++){
-                int offset = i * n;
+                int offset = i * n_double;
                 double scale = local_mat[offset + row];
 
                 // Update column values using the given pivot
-                for (col = 0; col < n; col++){
+                for (col = 0; col < n_double; col++){
                     local_mat[offset + col] -= pivot_row[col] * scale;
                 }
             }
         }
     }
 
+    
     for (row = end_row; row < n; row++){
         // Blocking receive
         MPI_Recv(
             // Data to be received
             pivot_row,
-            n,
+            n_double,
             MPI_DOUBLE,
 
             // Sender Info
@@ -171,16 +183,16 @@ int main(void) {
         );
 
         for (i = 0; i < n_rows; i++){
-            int offset = i * n;
+            int offset = i * n_double;
             double scale = local_mat[offset + row];
 
             // Update column values using the given pivot
-            for (col = 0; col < n; col++){
+            for (col = 0; col < n_double; col++){
                 local_mat[offset + col] -= pivot_row[col] * scale;
             }
         }
     }
-    // if(world_rank == 1) print_matrix(local_mat, n, n_rows);
+    // if(world_rank == 0) print_matrix(local_mat, n_double, n_rows, 0);
 
     
     // Gather time
@@ -200,7 +212,7 @@ int main(void) {
     );
 
     // Check for results
-    if(world_rank == 0) print_matrix(mat, n, n);
+    if(world_rank == 0) print_matrix(mat, n_double, n, n);
 
     // Clean up
     if(world_rank == 0) delete[] mat;
