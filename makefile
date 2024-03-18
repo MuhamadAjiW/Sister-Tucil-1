@@ -1,6 +1,6 @@
 # ----------------ARGUMENTS----------------
 # Change test case as needed from the function call
-TEST_CASE ?= 2048.txt
+TEST_CASE ?= 32.txt
 
 
 # ----------------VARIABLES----------------
@@ -8,7 +8,7 @@ TEST_CASE ?= 2048.txt
 OUTPUT_FOLDER = bin
 TEST_FOLDER = test_cases
 RESULT_FOLDER = results
-GCC_OPTIMIZATION_FLAGS = -O3 -march=native
+GCC_OPTIMIZATION_FLAGS = -O3 -march=native -fallow-store-data-races -fno-semantic-interposition
 
 # Serial Variables
 SERIAL_EXECUTABLE = serial.exe

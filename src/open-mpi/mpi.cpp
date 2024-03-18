@@ -87,79 +87,81 @@ int main(void) {
     );
 
     // Actual operation for each processes
-    for (row = 0; row < end_row; row++){
-        
-        // Spread using batch
-        // e.g for 32 with 4 processes it would be 0, 1, 2, 3
-        // Round robin wouldn't do any better in this situation since indices does not hold value
-        if(row >= start_row && row < end_row){
-            int local_row = row - start_row;
+    // Spread using batch
+    // e.g for 32 with 4 processes it would be 0, 1, 2, 3
+    // Round robin wouldn't do any better in this situation since indices does not hold value
 
-            // Pivot calculation to the right
-            int offset = local_row * n_double;
-            double pivot = local_mat[offset + row];
-            for (col = row; col < n_double; col++){
-                local_mat[offset + col] /= pivot;
-            }
+    // Set below to 0
+    for (row = 0; row < start_row; row++){
+        // Blocking receive
+        MPI_Recv(
+            // Data to be received
+            pivot_row,
+            n_double,
+            MPI_DOUBLE,
 
-            // Send resulting row to processes with rows below, nonblocking since we are not waiting for anything in return
-            for (i = 0; i < world_size; i++){
-                if(world_rank == i) continue;
+            // Sender Info
+            row / n_rows,
+            
+            // Communication lines
+            0, MPI_COMM_WORLD, MPI_STATUS_IGNORE
+        );
 
-                MPI_Isend(
-                    // Data to be sent
-                    local_mat + offset,
-                    n_double,
-                    MPI_DOUBLE,
-
-                    // Receiver Info
-                    i,
-
-                    // Communication lines
-                    0, MPI_COMM_WORLD, &request_queue[i]
-                );
-            }
+        for (i = 0; i < n_rows; i++){
+            int offset = i * n_double;
+            double scale = local_mat[offset + row];
 
             // Update column values using the given pivot
-            for (i = 0; i < n_rows; i++){
-                if(i == local_row) continue;
-
-                int elimination_offset = i * n_double;
-                double scale = local_mat[elimination_offset + row];
-
-                // Update column values using the given pivot
-                for (col = 0; col < n_double; col++){
-                    local_mat[elimination_offset + col] -= local_mat[offset + col] * scale;
-                }
-            }
-        }
-        else{
-            // Blocking receive
-            MPI_Recv(
-                // Data to be received
-                pivot_row,
-                n_double,
-                MPI_DOUBLE,
-
-                // Sender Info
-                row / n_rows,
-                
-                // Communication lines
-                0, MPI_COMM_WORLD, MPI_STATUS_IGNORE
-            );
-
-            for (i = 0; i < n_rows; i++){
-                int offset = i * n_double;
-                double scale = local_mat[offset + row];
-
-                // Update column values using the given pivot
-                for (col = 0; col < n_double; col++){
-                    local_mat[offset + col] -= pivot_row[col] * scale;
-                }
+            for (col = 0; col < n_double; col++){
+                local_mat[offset + col] -= pivot_row[col] * scale;
             }
         }
     }
 
+    // Get current pivot
+    for (row = start_row; row < end_row; row++){
+        int local_row = row - start_row;
+
+        // Pivot calculation to the right
+        int offset = local_row * n_double;
+        double pivot = local_mat[offset + row];
+        for (col = row; col < n_double; col++){
+            local_mat[offset + col] /= pivot;
+        }
+
+        // Send resulting row to processes with rows below, nonblocking since we are not waiting for anything in return
+        for (i = 0; i < world_size; i++){
+            if(world_rank == i) continue;
+
+            MPI_Isend(
+                // Data to be sent
+                local_mat + offset,
+                n_double,
+                MPI_DOUBLE,
+
+                // Receiver Info
+                i,
+
+                // Communication lines
+                0, MPI_COMM_WORLD, &request_queue[i]
+            );
+        }
+
+        // Update column values using the given pivot
+        for (i = 0; i < n_rows; i++){
+            if(i == local_row) continue;
+
+            int elimination_offset = i * n_double;
+            double scale = local_mat[elimination_offset + row];
+
+            // Update column values using the given pivot
+            for (col = 0; col < n_double; col++){
+                local_mat[elimination_offset + col] -= local_mat[offset + col] * scale;
+            }
+        }
+    }
+
+    // Set above to 0
     for (row = end_row; row < n; row++){
         // Blocking receive
         MPI_Recv(
