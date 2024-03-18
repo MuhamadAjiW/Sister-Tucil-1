@@ -41,14 +41,14 @@ int main(void) {
     // Read matrix information in world_rank 0
     if (world_rank == 0){
         cin >> n;
-        int n_double = 2 * n;
+        int n_double = n << 1;
 
         // Why even initialize it with 2n x 2n in the serial code? That's not very memory efficient
         mat = new double[n_double * n];
         for (row = 0; row < n; ++row) {
             int offset = row * n_double;
 
-            for (col = 0; col < n; col++){
+            for (col = 0; col < n; ++col){
                 cin >> mat[offset + col];
             }            
         }
@@ -58,7 +58,7 @@ int main(void) {
     // Initialize local matrix
     // Lots of variables are here to avoid recalculation
     MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    int n_double = n * 2;
+    int n_double = n << 1;
     int n_rows = n / world_size;
     int local_size = n_double * n_rows;
     double* local_mat = new double[local_size];
@@ -79,7 +79,7 @@ int main(void) {
         0, MPI_COMM_WORLD
     );
 
-    for (row = 0; row < n_rows; row++){
+    for (row = 0; row < n_rows; ++row){
         local_mat[row * n_double + n + row + start_row] = 1;
     }
 
@@ -89,7 +89,7 @@ int main(void) {
     // Round robin wouldn't do any better in this situation since indices does not hold value
 
     // Set below to 0
-    for (row = 0; row < start_row; row++){
+    for (row = 0; row < start_row; ++row){
         // Blocking receive
         MPI_Recv(
             // Data to be received
@@ -104,30 +104,30 @@ int main(void) {
             0, MPI_COMM_WORLD, MPI_STATUS_IGNORE
         );
 
-        for (i = 0; i < n_rows; i++){
+        for (i = 0; i < n_rows; ++i){
             int offset = i * n_double;
             double scale = local_mat[offset + row];
 
             // Update column values using the given pivot
-            for (col = 0; col < n_double; col++){
+            for (col = 0; col < n_double; ++col){
                 local_mat[offset + col] -= pivot_row[col] * scale;
             }
         }
     }
 
     // Get current pivot
-    for (row = start_row; row < end_row; row++){
+    for (row = start_row; row < end_row; ++row){
         int local_row = row - start_row;
 
         // Pivot calculation to the right
         int offset = local_row * n_double;
         double pivot = local_mat[offset + row];
-        for (col = row; col < n_double; col++){
+        for (col = row; col < n_double; ++col){
             local_mat[offset + col] /= pivot;
         }
 
         // Send resulting row to processes with rows below, nonblocking since we are not waiting for anything in return
-        for (i = 0; i < world_size; i++){
+        for (i = 0; i < world_size; ++i){
             if(world_rank == i) continue;
 
             MPI_Isend(
@@ -145,21 +145,21 @@ int main(void) {
         }
 
         // Update column values using the given pivot
-        for (i = 0; i < n_rows; i++){
+        for (i = 0; i < n_rows; ++i){
             if(i == local_row) continue;
 
             int elimination_offset = i * n_double;
             double scale = local_mat[elimination_offset + row];
 
             // Update column values using the given pivot
-            for (col = 0; col < n_double; col++){
+            for (col = 0; col < n_double; ++col){
                 local_mat[elimination_offset + col] -= local_mat[offset + col] * scale;
             }
         }
     }
 
     // Set above to 0
-    for (row = end_row; row < n; row++){
+    for (row = end_row; row < n; ++row){
         // Blocking receive
         MPI_Recv(
             // Data to be received
@@ -174,12 +174,12 @@ int main(void) {
             0, MPI_COMM_WORLD, MPI_STATUS_IGNORE
         );
 
-        for (i = 0; i < n_rows; i++){
+        for (i = 0; i < n_rows; ++i){
             int offset = i * n_double;
             double scale = local_mat[offset + row];
 
             // Update column values using the given pivot
-            for (col = 0; col < n_double; col++){
+            for (col = 0; col < n_double; ++col){
                 local_mat[offset + col] -= pivot_row[col] * scale;
             }
         }

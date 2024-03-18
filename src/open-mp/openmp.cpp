@@ -8,7 +8,7 @@
 using namespace std;
 
 // Macros so the overhead is in the compiler
-#define THREAD_COUNT 16
+#define THREAD_COUNT 4
 
 void print_matrix(double** mat, int x, int y, int x_offset){
     cout << y << endl;
@@ -23,64 +23,47 @@ void print_matrix(double** mat, int x, int y, int x_offset){
 }
 
 int main(void) {
-    double** mat = NULL;
-
     // Read matrix information in main thread
-    int i = 0, j = 0, k = 0, n = 0;
+    int n;
 
     cin >> n;
     int n_double = 2 * n;
-    int n_rows = n / THREAD_COUNT;
-    int local_size = n_double * n_rows;
 
     // Why even initialize it with 2n x 2n in the serial code? That's not very memory efficient
-    mat = new double*[n];
+    double** mat = new double*[n];
     for (int row = 0; row < n; ++row) {
         mat[row] = new double[n_double]();
         for (int col = 0; col < n; col++){
             cin >> mat[row][col];
-        }            
+        }
     }
     auto start = chrono::high_resolution_clock::now();
 
-
-    #pragma omp parallel for num_threads(THREAD_COUNT)
-    for(i = 0; i < n; ++i){
-        mat[i][i + n] = 1;
+    // Identity matrix
+    // Somehow not worth parallelizing?
+    for (int row = 0; row < n; ++row){
+        mat[row][row + n] = 1;
     }
 
-    // Unparallelizable
-    for(i = n - 1; i > 0; --i){
-        if(mat[i-1][1] < mat[i][1]){
-            double* temp = mat[i];
-            mat[i] = mat[i-1];
-            mat[i-1] = temp;
+    for (int row = 0; row < n; ++row){
+        double scale = mat[row][row];
+
+        // Somehow not worth parallelizing?
+        for (int col  = 0; col < n_double; col++){
+            mat[row][col] /= scale;
         }
-    }
+        
+        #pragma omp parallel for num_threads(THREAD_COUNT)
+        for (int row2 = 0; row2 < n; row2++){
+            if(row2 == row) continue;
 
-    // Reducing To Diagonal Matrix
-    for(i = 0; i < n; ++i){
-        #pragma parallel for num_threads(THREAD_COUNT)
-        for(j = 0; j < n; ++j){
-            if(j != i){
-                double multiplier = mat[j][i] / mat[i][i];
-                for(k = 0; k < n*2; ++k){
-                    mat[j][k] -= mat[i][k] * multiplier;
-                }
+            double multiplier = mat[row2][row];
+            for (int col = 0; col < n_double; col++){
+                mat[row2][col] -= mat[row][col] * multiplier;
             }
         }
     }
     
-    // Reducing To Unit Matrix
-    #pragma omp parallel for num_threads(THREAD_COUNT)
-    for(i = 0; i < n; ++i){
-        double multiplier = mat[i][i];
-        for(j = 0; j < 2*n; ++j){
-            mat[i][j] = mat[i][j] / multiplier;
-        }
-    }
-
-
     auto end = chrono::high_resolution_clock::now();
     chrono::duration<double> time_taken = end - start;
     cout << time_taken.count() << " Seconds" << std::endl;
