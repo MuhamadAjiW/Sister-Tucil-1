@@ -52,13 +52,6 @@ int main(void) {
                 cin >> mat[offset + col];
             }            
         }
-
-        for (row = 0; row < n; row++){
-            mat[row * n_double + row + n] = 1;
-        }
-        
-    }
-    if (world_rank == 0) {
         start = MPI_Wtime();
     }
 
@@ -85,6 +78,10 @@ int main(void) {
 
         0, MPI_COMM_WORLD
     );
+
+    for (row = 0; row < n_rows; row++){
+        local_mat[row * n_double + n + row + start_row] = 1;
+    }
 
     // Actual operation for each processes
     // Spread using batch

@@ -1,6 +1,6 @@
 # ----------------ARGUMENTS----------------
 # Change test case as needed from the function call
-TEST_CASE ?= 32.txt
+TEST_CASE ?= 2048.txt
 
 
 # ----------------VARIABLES----------------
@@ -47,7 +47,7 @@ build_serial:
 build_parallel: build_mpi build_openmp build_cuda
 build_mpi:
 	@echo "Compiling MPI program..."
-	@g++ src/open-mpi/$(MPI_SRC) ${MPI_FLAGS} -o $(OUTPUT_FOLDER)/$(MPI_EXECUTABLE)
+	@g++ src/mpi/$(MPI_SRC) ${MPI_FLAGS} -o $(OUTPUT_FOLDER)/$(MPI_EXECUTABLE)
 build_openmp:
 	@echo "Compiling OpenMP program..."
 	@g++ src/open-mp/$(OPENMP_SRC) $(OPENMP_FLAGS) -o $(OUTPUT_FOLDER)/$(OPENMP_EXECUTABLE)
