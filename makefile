@@ -26,7 +26,7 @@ MPI_FLAGS = $(GCC_OPTIMIZATION_FLAGS) -I ${MPI_INC} -L ${MPI_LIB64} -lmsmpi
 # OpenMP Variables
 OPENMP_EXECUTABLE = openmp.exe
 OPENMP_SRC = openmp.cpp
-OPENMP_FLAGS = -fopenmp -march=native -fallow-store-data-races -fno-semantic-interposition
+OPENMP_FLAGS = $(GCC_OPTIMIZATION_FLAGS) -ffast-math -fopenmp
 
 # CUDA Variables
 CUDA_EXECUTABLE = cuda.exe

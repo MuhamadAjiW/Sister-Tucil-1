@@ -8,7 +8,7 @@
 using namespace std;
 
 // Macros so the overhead is in the compiler
-#define THREAD_COUNT 4
+#define THREAD_COUNT 8
 
 void print_matrix(double** mat, int x, int y, int x_offset){
     cout << y << endl;
@@ -40,7 +40,7 @@ int main(void) {
     auto start = chrono::high_resolution_clock::now();
 
     // Identity matrix
-    // Somehow not worth parallelizing?
+    #pragma omp simd
     for (int row = 0; row < n; ++row){
         mat[row][row + n] = 1;
     }
@@ -48,16 +48,20 @@ int main(void) {
     for (int row = 0; row < n; ++row){
         double scale = mat[row][row];
 
-        // Somehow not worth parallelizing?
+        // Single row
+        #pragma omp simd
         for (int col  = 0; col < n_double; col++){
             mat[row][col] /= scale;
         }
         
+        // Propagate line to other rows 
         #pragma omp parallel for num_threads(THREAD_COUNT)
         for (int row2 = 0; row2 < n; row2++){
             if(row2 == row) continue;
 
             double multiplier = mat[row2][row];
+
+            #pragma omp simd
             for (int col = 0; col < n_double; col++){
                 mat[row2][col] -= mat[row][col] * multiplier;
             }
