@@ -1,6 +1,6 @@
 # ----------------ARGUMENTS----------------
 # Change test case as needed from the function call
-TEST_CASE ?= 2048.txt
+TEST_CASE ?= 32.txt
 
 
 # ----------------VARIABLES----------------
