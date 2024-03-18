@@ -26,7 +26,7 @@ int main(void) {
     double** mat = NULL;
 
     // Read matrix information in main thread
-    int n;
+    int i = 0, j = 0, k = 0, n = 0;
 
     cin >> n;
     int n_double = 2 * n;
@@ -44,42 +44,42 @@ int main(void) {
     auto start = chrono::high_resolution_clock::now();
 
 
-    double scale = 0;
-    #pragma omp parallel num_threads(THREAD_COUNT)
-    {
-        int tid = omp_get_thread_num();
-        int start_row = n_rows * tid;
-        int end_row = start_row + n_rows;
+    #pragma omp parallel for num_threads(THREAD_COUNT)
+    for(i = 0; i < n; ++i){
+        mat[i][i + n] = 1;
+    }
 
-
-        // Identity matrix
-        for (int row = start_row; row < end_row; ++row){
-            mat[row][row + n] = 1;
+    // Unparallelizable
+    for(i = n - 1; i > 0; --i){
+        if(mat[i-1][1] < mat[i][1]){
+            double* temp = mat[i];
+            mat[i] = mat[i-1];
+            mat[i-1] = temp;
         }
+    }
 
-        for (int row = 0; row < n; row++){
-            #pragma omp barrier
-            #pragma omp single
-            {
-                scale = mat[row][row];
-            }
-
-            for (int col  = start_row * 2; col < end_row * 2; col++){
-                mat[row][col] /= scale;
-            }
-            
-            #pragma omp barrier
-
-            for (int row2 = start_row; row2 < end_row; row2++){
-                if(row2 == row) continue;
-
-                double multiplier = mat[row2][row];
-                for (int col = 0; col < n_double; col++){
-                    mat[row2][col] -= mat[row][col] * multiplier;
+    // Reducing To Diagonal Matrix
+    for(i = 0; i < n; ++i){
+        #pragma parallel for num_threads(THREAD_COUNT)
+        for(j = 0; j < n; ++j){
+            if(j != i){
+                double multiplier = mat[j][i] / mat[i][i];
+                for(k = 0; k < n*2; ++k){
+                    mat[j][k] -= mat[i][k] * multiplier;
                 }
             }
         }
     }
+    
+    // Reducing To Unit Matrix
+    #pragma omp parallel for num_threads(THREAD_COUNT)
+    for(i = 0; i < n; ++i){
+        double multiplier = mat[i][i];
+        for(j = 0; j < 2*n; ++j){
+            mat[i][j] = mat[i][j] / multiplier;
+        }
+    }
+
 
     auto end = chrono::high_resolution_clock::now();
     chrono::duration<double> time_taken = end - start;
