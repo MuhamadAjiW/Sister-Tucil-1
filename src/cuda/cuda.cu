@@ -4,36 +4,26 @@
 using namespace std;
 
 #define BLOCK_SIZE 32
+#define MAX_BLOCK_SIZE 1024
 
-// TODO: reduce dimensions for this function
 __global__ void generate_identity_matrix(double* matrix, int row_limit, int col_limit){  
     int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    
-    if (row < row_limit && col < col_limit) {
-        if (row == col - row_limit) matrix[row * col_limit + col] = 1;
+    if (row < row_limit) {
+        matrix[row * col_limit + row + row_limit] = 1;
     }
 }
 
-// TODO: reduce dimensions for this function
-__global__ void scale_row(double* matrix, int row_limit, int col_limit, int selected_row){  
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
+__global__ void scale_row(double* matrix, int col_limit, int selected_row){  
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     
     double scale = matrix[selected_row * col_limit + selected_row];
-    if (row == selected_row && col < col_limit && row != col) {
-        matrix[row * col_limit + col] /= scale;
+    if (col < col_limit && selected_row != col) {
+        matrix[selected_row * col_limit + col] /= scale;
     }
 }
 
-// TODO: reduce dimensions for this function
-__global__ void scale_pivot(double* matrix, int row_limit, int col_limit, int selected_row){  
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    
-    if (row == selected_row && row == col) {
-        matrix[row * col_limit + col] = 1;
-    }
+__global__ void scale_pivot(double* matrix, int col_limit, int selected_row){  
+    matrix[selected_row * col_limit + selected_row] = 1;
 }
 
 __global__ void reduce_rows(double* matrix, int row_limit, int col_limit, int selected_col){  
@@ -46,13 +36,11 @@ __global__ void reduce_rows(double* matrix, int row_limit, int col_limit, int se
     }
 }
 
-// TODO: reduce dimensions for this function
 __global__ void clear_column(double* matrix, int row_limit, int col_limit, int selected_col){  
     int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
     
-    if (row != selected_col && col == selected_col) {
-        matrix[row * col_limit + col] = 0;
+    if (row < row_limit && row != selected_col) {
+        matrix[row * col_limit + selected_col] = 0;
     }
 }
 
@@ -97,19 +85,32 @@ int main(void) {
             cin >> mat[offset + col];
         }
     }
-    cudaEventRecord(start, 0);
-
+    
     dim3 block(BLOCK_SIZE, BLOCK_SIZE);
-    dim3 grid(n / block.x * 2, n / block.y);
+    dim3 grid(ceil(n / block.x * 2) , ceil(n / block.y));
+
+    dim3 block_inline_col(MAX_BLOCK_SIZE, 1);
+    dim3 grid_inline_col(ceil(n / block.x * 2), 1);
+
+    dim3 block_inline_row(1, MAX_BLOCK_SIZE);
+    dim3 grid_inline_row(1, ceil(n / block.y));
 
     cudaMemcpy(cuda_mat, mat, matrix_size, cudaMemcpyHostToDevice);
-    generate_identity_matrix<<<grid, block>>>(cuda_mat, n, n_double);
+
+    // Timer starts at identity matrix initialization  
+    cudaEventRecord(start, 0);
+
+    generate_identity_matrix<<<grid_inline_row, block_inline_row>>>(cuda_mat, n, n_double);
 
     for (int row = 0; row < n; ++row){
-        scale_row<<<grid, block>>>(cuda_mat, n, n_double, row);
-        scale_pivot<<<grid, block>>>(cuda_mat, n, n_double, row);
+        // Even though they're the same operations
+        // scale row and scale pivot has to be separated because of race conditions
+        // same deal with clear column and reduce rows
+
+        scale_row<<<grid_inline_col, block_inline_col>>>(cuda_mat, n_double, row);
+        scale_pivot<<<1, 1>>>(cuda_mat, n_double, row);
         reduce_rows<<<grid, block>>>(cuda_mat, n, n_double, row);
-        clear_column<<<grid, block>>>(cuda_mat, n, n_double, row);
+        clear_column<<<grid_inline_row, block_inline_row>>>(cuda_mat, n, n_double, row);
     }
 
     cudaMemcpy(mat, cuda_mat, matrix_size, cudaMemcpyDeviceToHost);
@@ -117,14 +118,14 @@ int main(void) {
     cudaEventRecord(stop, 0);
     cudaEventSynchronize(stop);
     cudaEventElapsedTime(&time, start, stop);
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
     cout << time / 1000 << " Seconds" << std::endl;
     
     print_matrix(mat, n_double, n, n);
 
     delete[] mat;
     cudaFree(cuda_mat);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
 
     return 0;
 }

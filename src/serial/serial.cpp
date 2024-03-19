@@ -31,6 +31,8 @@ int main()
             cin >> mat[i][j];
         }
     }
+
+    // Timer starts at identity matrix initialization  
     auto start = chrono::high_resolution_clock::now();
     
     // Initializing Right-hand side to identity matrix

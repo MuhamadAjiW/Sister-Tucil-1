@@ -31,6 +31,8 @@ OPENMP_FLAGS = $(GCC_OPTIMIZATION_FLAGS) -ffast-math -fopenmp
 # CUDA Variables
 CUDA_EXECUTABLE = cuda.exe
 CUDA_SRC = cuda.cu
+NVCC_OPTIMIZATION_FLAGS = -O3 -use_fast_math -arch=native -Xptxas="-O3 --allow-expensive-optimizations=true"
+
 
 
 
@@ -53,10 +55,10 @@ build_openmp:
 	@g++ src/open-mp/$(OPENMP_SRC) $(OPENMP_FLAGS) -o $(OUTPUT_FOLDER)/$(OPENMP_EXECUTABLE)
 build_cuda:
 	@echo "Compiling CUDA program..."
-	@nvcc src/cuda/$(CUDA_SRC) -o $(OUTPUT_FOLDER)/$(CUDA_EXECUTABLE)
+	@nvcc src/cuda/$(CUDA_SRC) $(NVCC_OPTIMIZATION_FLAGS) -o $(OUTPUT_FOLDER)/$(CUDA_EXECUTABLE)
 
 # Execute programs
-exec_all: exec_serial exec_mpi exec_openmp exec_openmp
+exec_all: exec_serial exec_mpi exec_openmp exec_openmp exec_cuda
 exec_serial:
 	@echo "Executing Serial program..."
 	@cd $(OUTPUT_FOLDER) && ./$(SERIAL_EXECUTABLE) < ../$(TEST_FOLDER)/$(TEST_CASE) > ../$(RESULT_FOLDER)/serial_$(TEST_CASE)

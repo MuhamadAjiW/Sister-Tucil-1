@@ -37,6 +37,8 @@ int main(void) {
             cin >> mat[row][col];
         }
     }
+
+    // Timer starts at identity matrix initialization
     auto start = chrono::high_resolution_clock::now();
 
     // Identity matrix

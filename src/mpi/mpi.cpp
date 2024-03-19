@@ -52,7 +52,6 @@ int main(void) {
                 cin >> mat[offset + col];
             }            
         }
-        start = MPI_Wtime();
     }
 
     // Initialize local matrix
@@ -65,6 +64,9 @@ int main(void) {
     double* pivot_row = new double[n_double];
     int start_row = world_rank * n_rows;
     int end_row = start_row + n_rows;
+
+    // Timer starts at identity matrix initialization
+    start = MPI_Wtime();
 
     // Scatter rows
     MPI_Scatter(
