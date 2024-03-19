@@ -33,7 +33,7 @@ int main(void) {
     double** mat = new double*[n];
     for (int row = 0; row < n; ++row) {
         mat[row] = new double[n_double]();
-        for (int col = 0; col < n; col++){
+        for (int col = 0; col < n; ++col){
             cin >> mat[row][col];
         }
     }
@@ -52,13 +52,13 @@ int main(void) {
 
         // Single row
         #pragma omp simd
-        for (int col  = 0; col < n_double; col++){
+        for (int col  = 0; col < n_double; ++col){
             mat[row][col] /= scale;
         }
         
         // Propagate line to other rows 
         #pragma omp parallel for num_threads(THREAD_COUNT)
-        for (int row2 = 0; row2 < n; row2++){
+        for (int row2 = 0; row2 < n; ++row2){
             if(row2 == row) continue;
 
             double multiplier = mat[row2][row];

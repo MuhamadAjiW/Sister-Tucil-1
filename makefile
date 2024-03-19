@@ -40,7 +40,7 @@ NVCC_OPTIMIZATION_FLAGS = -O3 -use_fast_math -arch=native -Xptxas="-O3 --allow-e
 # Compile Scripts
 all: build exec_all
 build: build_serial build_parallel
-	@echo "Everything is compiled' to execute the program"
+	@echo "Everything is compiled"
 
 build_serial:
 	@echo "Compiling serial program..."
