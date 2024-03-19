@@ -31,8 +31,29 @@ __global__ void scale_row(double* matrix, int row_limit, int col_limit, int sele
     // if(row == 0 && col == 0) printf("Scalling row %d\n", selected_row);
     
     double scale = matrix[selected_row * col_limit + selected_row];
-    if (row == selected_row && col < col_limit) {
+    if (row == selected_row && col < col_limit && row != col) {
         matrix[row * col_limit + col] /= scale;
+    }
+}
+
+__global__ void scale_pivot(double* matrix, int row_limit, int col_limit, int selected_row){  
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    // if(row == 0 && col == 0) printf("Scalling row %d\n", selected_row);
+    
+    if (row == selected_row && row == col) {
+        matrix[row * col_limit + col] = 1;
+    }
+}
+
+__global__ void reduce_rows(double* matrix, int row_limit, int col_limit, int selected_col){  
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    // if(row == 0 && col == 0) printf("Clearing column %d\n", selected_col);
+    
+    double scale = matrix[row * col_limit + selected_col];
+    if (row != selected_col && col < col_limit && row < row_limit && col != selected_col) {
+        matrix[row * col_limit + col] -= scale * matrix[selected_col * col_limit + col];
     }
 }
 
@@ -42,8 +63,8 @@ __global__ void clear_column(double* matrix, int row_limit, int col_limit, int s
     // if(row == 0 && col == 0) printf("Clearing column %d\n", selected_col);
     
     double scale = matrix[row * col_limit + selected_col];
-    if (row != selected_col && col < col_limit && row < row_limit) {
-        matrix[row * col_limit + col] -= scale * matrix[selected_col * col_limit + col];
+    if (row != selected_col && col < col_limit && row < row_limit && col == selected_col) {
+        matrix[row * col_limit + col] = 0;
     }
 }
 
@@ -61,7 +82,6 @@ void print_matrix(double* mat, int x, int y, int x_offset){
 }
 
 int main(void) {
-
     // Read matrix information in main thread
     int n;
 
@@ -82,7 +102,6 @@ int main(void) {
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     
-    
     int offset;
     for (int row = 0; row < n; ++row) {
         offset = row * n_double;
@@ -95,19 +114,13 @@ int main(void) {
     dim3 block(BLOCK_SIZE, BLOCK_SIZE);
     dim3 grid(n / block.x * 2, n / block.y);
 
-    // for (int row = 0; row < n; ++row){
-    //     mat[row * n_double + n + row] = 1;
-    // }
     cudaMemcpy(cuda_mat, mat, matrix_size, cudaMemcpyHostToDevice);
-
     generate_identity_matrix<<<grid, block>>>(cuda_mat, n, n_double);
 
-    // Ada masalah either sync atau di sini keliatannya
-    // Kalo rownya di atas 200 jadi kacrut anjir maslaahnya ga konsisten kacrutnya jadi kek tai debuggingnya kontol
-    // Feeling gw sih sync ya, tapi gimana anying cara syncnya
-    // Ngentot anying kaya ga guna cudaDeviceSynchronize
     for (int row = 0; row < n; ++row){
         scale_row<<<grid, block>>>(cuda_mat, n, n_double, row);
+        scale_pivot<<<grid, block>>>(cuda_mat, n, n_double, row);
+        reduce_rows<<<grid, block>>>(cuda_mat, n, n_double, row);
         clear_column<<<grid, block>>>(cuda_mat, n, n_double, row);
     }
 
@@ -120,7 +133,7 @@ int main(void) {
     cudaEventDestroy(stop);
     cout << time / 1000 << " Seconds" << std::endl;
     
-    print_matrix(mat, n_double, n, n - 2);
+    print_matrix(mat, n_double, n, n);
 
     delete[] mat;
     cudaFree(cuda_mat);
