@@ -5,7 +5,7 @@ using namespace std;
 
 #define BLOCK_SIZE 32
 
-//TODO: Optimize, for now it's processing the whole matrix everytime
+// TODO: reduce dimensions for this function
 __global__ void generate_identity_matrix(double* matrix, int row_limit, int col_limit){  
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -15,6 +15,7 @@ __global__ void generate_identity_matrix(double* matrix, int row_limit, int col_
     }
 }
 
+// TODO: reduce dimensions for this function
 __global__ void scale_row(double* matrix, int row_limit, int col_limit, int selected_row){  
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -25,6 +26,7 @@ __global__ void scale_row(double* matrix, int row_limit, int col_limit, int sele
     }
 }
 
+// TODO: reduce dimensions for this function
 __global__ void scale_pivot(double* matrix, int row_limit, int col_limit, int selected_row){  
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -44,12 +46,12 @@ __global__ void reduce_rows(double* matrix, int row_limit, int col_limit, int se
     }
 }
 
+// TODO: reduce dimensions for this function
 __global__ void clear_column(double* matrix, int row_limit, int col_limit, int selected_col){  
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    // if(row == 0 && col == 0) printf("Clearing column %d\n", selected_col);
     
-    if (row != selected_col && col < col_limit && row < row_limit && col == selected_col) {
+    if (row != selected_col && col == selected_col) {
         matrix[row * col_limit + col] = 0;
     }
 }
