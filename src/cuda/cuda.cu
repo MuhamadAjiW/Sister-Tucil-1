@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
-#include <chrono>
 using namespace std;
 
 // __global__ void device_hello_world() {
@@ -12,39 +11,39 @@ using namespace std;
 // device_hello_world<<<grid, block>>>();
 // cudaDeviceSynchronize();
 
-#define BLOCK_SIZE 16
+#define BLOCK_SIZE 32
 
 
 //TODO: Optimize, for now it's processing the whole matrix everytime
-__global__ void generate_identity_matrix(double* matrix, int size){  
+__global__ void generate_identity_matrix(double* matrix, int row_limit, int col_limit){  
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
+    // if(row == 0 && col == 0) printf("Generating identity matrix\n");
     
-    int limit = size * 2;
-    if (row < size && col < limit) {
-        if (row == col - size) matrix[row * limit + col] = 1;
+    if (row < row_limit && col < col_limit) {
+        if (row == col - row_limit) matrix[row * col_limit + col] = 1;
     }
 }
 
-__global__ void scale_row(double* matrix, int size, int selected_row){  
+__global__ void scale_row(double* matrix, int row_limit, int col_limit, int selected_row){  
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
+    // if(row == 0 && col == 0) printf("Scalling row %d\n", selected_row);
     
-    int limit = size * 2;
-    double scale = matrix[selected_row * limit + selected_row];
-    if (row == selected_row && col < limit) {
-        matrix[row * limit + col] /= scale;
+    double scale = matrix[selected_row * col_limit + selected_row];
+    if (row == selected_row && col < col_limit) {
+        matrix[row * col_limit + col] /= scale;
     }
 }
 
-__global__ void clear_column(double* matrix, int size, int selected_col){  
+__global__ void clear_column(double* matrix, int row_limit, int col_limit, int selected_col){  
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
+    // if(row == 0 && col == 0) printf("Clearing column %d\n", selected_col);
     
-    int limit = size * 2;
-    double scale = matrix[row * limit + selected_col];
-    if (row != selected_col && col < limit && row < size) {
-        matrix[row * limit + col] -= scale * matrix[selected_col * limit + col];
+    double scale = matrix[row * col_limit + selected_col];
+    if (row != selected_col && col < col_limit && row < row_limit) {
+        matrix[row * col_limit + col] -= scale * matrix[selected_col * col_limit + col];
     }
 }
 
@@ -68,12 +67,21 @@ int main(void) {
 
     cin >> n;
     int n_double = 2 * n;
+    int matrix_size = n * n_double * sizeof(double);
+
+    // Don't collect error because it's an overhead lol, just trust on these codes
+    // cudaError_t error;
 
     // Why even initialize it with 2n x 2n in the serial code? That's not very memory efficient
     double* mat = new double[n * n_double];
     double* cuda_mat = new double[n * n_double];
-    cudaMalloc(&cuda_mat, n * n_double * sizeof(double));
-    cudaDeviceSynchronize();
+    cudaMalloc(&cuda_mat, matrix_size);
+
+    float time;
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    
     
     int offset;
     for (int row = 0; row < n; ++row) {
@@ -82,26 +90,37 @@ int main(void) {
             cin >> mat[offset + col];
         }
     }
-    auto start = chrono::high_resolution_clock::now();
-    cudaMemcpy(cuda_mat, mat, n * n_double * sizeof(double), cudaMemcpyHostToDevice);
+    cudaEventRecord(start, 0);
 
     dim3 block(BLOCK_SIZE, BLOCK_SIZE);
     dim3 grid(n / block.x * 2, n / block.y);
 
-    generate_identity_matrix<<<grid, block>>>(cuda_mat, n);
+    // for (int row = 0; row < n; ++row){
+    //     mat[row * n_double + n + row] = 1;
+    // }
+    cudaMemcpy(cuda_mat, mat, matrix_size, cudaMemcpyHostToDevice);
 
+    generate_identity_matrix<<<grid, block>>>(cuda_mat, n, n_double);
+
+    // Ada masalah either sync atau di sini keliatannya
+    // Kalo rownya di atas 200 jadi kacrut anjir maslaahnya ga konsisten kacrutnya jadi kek tai debuggingnya kontol
+    // Feeling gw sih sync ya, tapi gimana anying cara syncnya
+    // Ngentot anying kaya ga guna cudaDeviceSynchronize
     for (int row = 0; row < n; ++row){
-        scale_row<<<grid, block>>>(cuda_mat, n, row);
-        clear_column<<<grid, block>>>(cuda_mat, n, row);
+        scale_row<<<grid, block>>>(cuda_mat, n, n_double, row);
+        clear_column<<<grid, block>>>(cuda_mat, n, n_double, row);
     }
 
-    cudaMemcpy(mat, cuda_mat, n * n_double * sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(mat, cuda_mat, matrix_size, cudaMemcpyDeviceToHost);
 
-    auto end = chrono::high_resolution_clock::now();
-    chrono::duration<double> time_taken = end - start;
-    cout << time_taken.count() << " Seconds" << std::endl;
-
-    print_matrix(mat, n_double, n, n);
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&time, start, stop);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+    cout << time / 1000 << " Seconds" << std::endl;
+    
+    print_matrix(mat, n_double, n, n - 2);
 
     delete[] mat;
     cudaFree(cuda_mat);
