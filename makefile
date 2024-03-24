@@ -61,16 +61,16 @@ build_cuda:
 exec_all: exec_serial exec_mpi exec_openmp exec_openmp exec_cuda
 exec_serial:
 	@echo "Executing Serial program..."
-	@cd $(OUTPUT_FOLDER) && ./$(SERIAL_EXECUTABLE) < ../$(TEST_FOLDER)/$(TEST_CASE) > ../$(RESULT_FOLDER)/serial_$(TEST_CASE)
+	@cd $(OUTPUT_FOLDER) && time -o ../$(RESULT_FOLDER)/time_serial_$(TEST_CASE) ./$(SERIAL_EXECUTABLE) < ../$(TEST_FOLDER)/$(TEST_CASE) > ../$(RESULT_FOLDER)/serial_$(TEST_CASE)
 exec_mpi:
 	@echo "Executing MPI program..."
-	@cd $(OUTPUT_FOLDER) && mpiexec $(MPI_EXECUTABLE)  < ../$(TEST_FOLDER)/$(TEST_CASE) > ../$(RESULT_FOLDER)/mpi_$(TEST_CASE)
+	@cd $(OUTPUT_FOLDER) && time -o ../$(RESULT_FOLDER)/time_mpi_$(TEST_CASE) mpiexec $(MPI_EXECUTABLE)  < ../$(TEST_FOLDER)/$(TEST_CASE) > ../$(RESULT_FOLDER)/mpi_$(TEST_CASE)
 exec_openmp:
 	@echo "Executing OpenMP program..."
-	@cd $(OUTPUT_FOLDER) && ./$(OPENMP_EXECUTABLE) < ../$(TEST_FOLDER)/$(TEST_CASE) > ../$(RESULT_FOLDER)/openmp_$(TEST_CASE)
+	@cd $(OUTPUT_FOLDER) && time -o ../$(RESULT_FOLDER)/time_openmp_$(TEST_CASE) ./$(OPENMP_EXECUTABLE) < ../$(TEST_FOLDER)/$(TEST_CASE) > ../$(RESULT_FOLDER)/openmp_$(TEST_CASE)
 exec_cuda:
 	@echo "Executing CUDA program..."
-	@cd $(OUTPUT_FOLDER) && ./$(CUDA_EXECUTABLE) < ../$(TEST_FOLDER)/$(TEST_CASE) > ../$(RESULT_FOLDER)/cuda_$(TEST_CASE)
+	@cd $(OUTPUT_FOLDER) && time -o ../$(RESULT_FOLDER)/time_cuda_$(TEST_CASE) ./$(CUDA_EXECUTABLE) < ../$(TEST_FOLDER)/$(TEST_CASE) > ../$(RESULT_FOLDER)/cuda_$(TEST_CASE)
 
 # Combination for testing
 serial	: build_serial exec_serial
