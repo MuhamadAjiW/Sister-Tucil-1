@@ -121,7 +121,10 @@ int main(void) {
 
         // Pivot calculation to the right
         int offset = local_row * n_double;
+        // Select pivot local_mat[row][row]
         double pivot = local_mat[offset + row];
+
+        // Divide row by pivot
         for (col = row; col < n_double; col++){
             local_mat[offset + col] /= pivot;
         }
